@@ -40,6 +40,7 @@ IMPORTANT RULES:
 - If sugar, palm oil, preservatives, artificial colors are present → flag them
 - If ingredient list is unclear → mention uncertainty
 - Keep explanations concise but informative
+Do not label calorie density as high unless calories per serving are significantly high (>200 kcal).
 - DO NOT return anything outside JSON
 If ingredient list is missing:
 - Do NOT assume source of sugar

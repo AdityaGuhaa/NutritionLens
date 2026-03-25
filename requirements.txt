@@ -21,7 +21,7 @@ grpcio-status==1.71.2
 h11==0.16.0
 httpcore==1.0.9
 httplib2==0.31.2
-httpx==0.28.1
+httpx==0.27.0
 idna==3.11
 packaging @ file:///C:/miniconda3/conda-bld/packaging_1761049096285/work
 pillow==12.1.1
