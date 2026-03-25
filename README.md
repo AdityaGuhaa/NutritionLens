@@ -1,18 +1,14 @@
-# 🥗 NutriLens
+# NutritionLens
 
 > AI-powered food label analyzer that turns complex ingredient lists and nutrition labels into clear, actionable health insights.
 
----
-
-## 🚀 Overview
+## Overview
 
 NutriLens is an intelligent system designed to help users make better food choices by analyzing product labels. Users simply upload images of ingredient lists and nutrition labels, and NutriLens processes them using computer vision and AI to generate easy-to-understand health insights.
 
 The system bridges the gap between **raw food label data** and **consumer understanding**, enabling smarter, healthier decisions in real time.
 
----
-
-## 🎯 Problem Statement
+## Problem Statement
 
 Modern food labels are:
 
@@ -26,24 +22,20 @@ Most consumers:
 * Can’t quickly evaluate healthiness
 * Lack time to research every product
 
-👉 NutriLens solves this by **automating label interpretation using AI**.
+NutriLens solves this by **automating label interpretation using AI**.
 
----
-
-## 💡 Solution
+## Solution
 
 NutriLens provides:
 
-* 📸 Image-based input (ingredients + nutrition labels)
-* 🧠 AI-driven analysis of food content
-* 📊 Structured health insights
-* ⚠️ Detection of harmful or controversial ingredients
+* Image-based input (ingredients + nutrition labels)
+* AI-driven analysis of food content
+* Structured health insights
+* Detection of harmful or controversial ingredients
 
 All delivered via a simple **Telegram bot interface**.
 
----
-
-## 🏗️ System Architecture
+## System Architecture
 
 The system is designed using a modular, scalable architecture:
 
@@ -61,9 +53,7 @@ LLM Analysis Engine
 Structured Health Output
 ```
 
----
-
-## ⚙️ Tech Stack
+## Tech Stack
 
 ### Backend
 
@@ -85,9 +75,7 @@ Structured Health Output
 * Logging & retry mechanisms
 * Structured prompt engineering
 
----
-
-## 🔄 Pipeline (End-to-End Flow)
+## Pipeline (End-to-End Flow)
 
 ### 1. User Interaction
 
@@ -138,9 +126,7 @@ Structured Health Output
 
 * Structured output sent back to user via Telegram
 
----
-
-## 🧠 Core Approach
+## Core Approach
 
 ### 1. Multimodal Intelligence
 
@@ -168,66 +154,52 @@ Carefully designed prompts ensure:
 * Retry logic for API failures
 * Graceful fallback for unreadable images
 
----
+## Features
 
-## 📦 Features
+* Image-based food label analysis
+* Ingredient safety detection
+* Nutrition breakdown interpretation
+* Telegram bot interface
+* Real-time AI insights
+* Intelligent error handling
 
-* ✅ Image-based food label analysis
-* ✅ Ingredient safety detection
-* ✅ Nutrition breakdown interpretation
-* ✅ Telegram bot interface
-* ✅ Real-time AI insights
-* ✅ Intelligent error handling
+## Challenges & Solutions
 
----
-
-## 🚧 Challenges & Solutions
-
-### ❗ Challenge: Poor Image Quality
+### Challenge: Poor Image Quality
 
 **Solution:** Robust parsing + fallback messaging
 
-### ❗ Challenge: API Failures (e.g., 503 errors)
+### Challenge: API Failures (e.g., 503 errors)
 
 **Solution:** Retry logic and logging system
 
-### ❗ Challenge: Unstructured Data
+### Challenge: Unstructured Data
 
 **Solution:** Structured prompt-based extraction
 
----
+## Future Enhancements
 
-## 📈 Future Enhancements
+* Barcode scanning support
+* Health scoring system
+* Personalized diet recommendations
+* Product comparison engine
+* Web dashboard
 
-* 🔍 Barcode scanning support
-* 📊 Health scoring system
-* 🧑‍⚕️ Personalized diet recommendations
-* 🛒 Product comparison engine
-* 🌐 Web dashboard
-
----
-
-## 🧪 Use Cases
+## Use Cases
 
 * Everyday grocery shopping
 * Fitness and diet tracking
 * Health-conscious consumers
 * Parents evaluating packaged food
 
----
-
-## 🤝 Contribution
+## Contribution
 
 Contributions are welcome! Feel free to fork the repo and submit pull requests.
 
----
-
-## 📜 License
+## License
 
 This project is open-source and available under the MIT License.
 
----
+## Final Note
 
-## 🌟 Final Note
-
-NutriLens is not just a project — it’s a step toward making **food transparency accessible to everyone**.
+NutriLens is not just a project, it’s a step toward making **food transparency accessible to everyone**.
