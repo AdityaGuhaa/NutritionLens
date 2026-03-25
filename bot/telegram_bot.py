@@ -1,146 +1,139 @@
-import json
-import re
-import time
-
-from google import genai
-from google.genai import types
+import requests
+from telegram import Update
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters
+)
 
 from app.config import settings
-from app.utils.prompts import get_food_analysis_prompt
-from app.services.image_service import save_image
-from app.utils.logger import get_logger
 
-logger = get_logger("gemini_service")
+# Backend API URL
+API_URL = "http://127.0.0.1:8000/api/analyze"
 
-# Initialize Gemini client
-client = genai.Client(api_key=settings.GEMINI_API_KEY)
-
-MAX_RETRIES = 3
+# In-memory user state
+user_data_store = {}
 
 
-# 🧠 Retry Wrapper
-def call_gemini_with_retry(func):
-    last_error = None
+# 🟢 START COMMAND
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            logger.info(f"Gemini call attempt {attempt + 1}")
-            return func()
+    user_data_store[user_id] = {
+        "nutrition": None,
+        "ingredients": None
+    }
 
-        except Exception as e:
-            last_error = str(e)
-
-            if "503" in last_error or "UNAVAILABLE" in last_error:
-                logger.warning(f"Gemini overloaded (attempt {attempt+1}), retrying...")
-                time.sleep(2)
-                continue
-
-            raise e
-
-    raise Exception(f"Gemini failed after retries: {last_error}")
+    await update.message.reply_text(
+        "👋 Welcome to *NutriLens!*\n\n"
+        "Send me:\n"
+        "1️⃣ Nutrition label image\n"
+        "2️⃣ Ingredients label image\n\n"
+        "You can send one or both.\n\n"
+        "⚠️ Only images are supported right now.",
+        parse_mode="Markdown"
+    )
 
 
-# 🧠 JSON Extractor
-def extract_json(text: str) -> dict:
-    try:
-        text = text.strip().replace("```json", "").replace("```", "")
+# 🖼️ HANDLE IMAGE
+async def handle_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
 
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-
-        return {
-            "error": "No valid JSON found",
-            "raw_output": text
+    if user_id not in user_data_store:
+        user_data_store[user_id] = {
+            "nutrition": None,
+            "ingredients": None
         }
+
+    photo = update.message.photo[-1]  # highest resolution
+    file = await photo.get_file()
+    file_bytes = await file.download_as_bytearray()
+
+    # 🧠 Basic classification (very simple heuristic for MVP)
+    caption = update.message.caption.lower() if update.message.caption else ""
+
+    if "ingredient" in caption:
+        user_data_store[user_id]["ingredients"] = file_bytes
+        await update.message.reply_text("✅ Ingredients image received.")
+
+    elif "nutrition" in caption or "facts" in caption:
+        user_data_store[user_id]["nutrition"] = file_bytes
+        await update.message.reply_text("✅ Nutrition label received.")
+
+    else:
+        # If no caption → try anyway as nutrition (MVP simplification)
+        user_data_store[user_id]["nutrition"] = file_bytes
+        await update.message.reply_text(
+            "📷 Image received. Trying to analyze..."
+        )
+
+    # 🚀 If at least one image exists → process
+    await process_images(update, context, user_id)
+
+
+# 🚀 PROCESS IMAGES
+async def process_images(update, context, user_id):
+    data = user_data_store[user_id]
+
+    # Use nutrition image as primary (MVP)
+    image_bytes = data.get("nutrition") or data.get("ingredients")
+
+    if not image_bytes:
+        return
+
+    try:
+        files = {
+            "file": ("image.jpg", image_bytes, "image/jpeg")
+        }
+
+        response = requests.post(API_URL, files=files)
+
+        result = response.json()
+
+        if not result.get("success"):
+            raise Exception("API failed")
+
+        analysis = result["data"]
+
+        if "error" in analysis:
+            await update.message.reply_text("❌ Unable to read contents.")
+            return
+
+        # 🧾 Format response
+        msg = (
+            f"🟢 *Health Score:* {analysis.get('health_score', 'N/A')}/10\n\n"
+            f"*Verdict:* {analysis.get('verdict', 'N/A')}\n\n"
+            f"⚠️ *Issues:*\n- " + "\n- ".join(analysis.get("issues", [])) + "\n\n"
+            f"💡 *Summary:*\n{analysis.get('summary', '')}"
+        )
+
+        await update.message.reply_text(msg, parse_mode="Markdown")
 
     except Exception as e:
-        return {
-            "error": f"JSON parsing failed: {str(e)}",
-            "raw_output": text
-        }
+        await update.message.reply_text("❌ Unable to read contents.")
 
 
-# 🚀 MAIN PIPELINE
-def analyze_food_label(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
-    try:
-        # ✅ Save image
-        save_image(image_bytes)
-        logger.info("Image saved")
+# 🚫 HANDLE NON-IMAGE INPUT
+async def handle_invalid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "❌ Only images are supported right now.\n"
+        "Please upload nutrition or ingredients label."
+    )
 
-        # ✅ Normalize MIME
-        if mime_type not in ["image/jpeg", "image/png", "image/webp"]:
-            logger.warning(f"Unsupported MIME type {mime_type}, defaulting to image/jpeg")
-            mime_type = "image/jpeg"
 
-        # =============================
-        # 🧠 STEP 1: OCR (with retry)
-        # =============================
-        def extract_text():
-            return client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=[
-                    "Extract all readable text from this food label image.",
-                    types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
-                ]
-            )
+# 🚀 MAIN
+def main():
+    app = ApplicationBuilder().token(settings.TELEGRAM_BOT_TOKEN).build()
 
-        vision_response = call_gemini_with_retry(extract_text)
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_image))
+    app.add_handler(MessageHandler(~filters.PHOTO, handle_invalid))
 
-        extracted_text = getattr(vision_response, "text", None)
+    print("🤖 NutriLens Bot Running...")
+    app.run_polling()
 
-        if not extracted_text:
-            return {"error": "Could not extract text from image"}
 
-        logger.info(f"Extracted text length: {len(extracted_text)}")
-
-        # =============================
-        # 🧠 STEP 2: Prompt
-        # =============================
-        prompt = get_food_analysis_prompt(extracted_text)
-
-        # =============================
-        # 🧠 STEP 3: Analysis (retry + fallback)
-        # =============================
-        def analyze_primary():
-            return client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt
-            )
-
-        def analyze_fallback():
-            logger.warning("Switching to fallback model (gemini-1.5-flash)")
-            return client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=prompt
-            )
-
-        try:
-            analysis_response = call_gemini_with_retry(analyze_primary)
-        except Exception as e:
-            logger.error(f"Primary model failed: {str(e)}")
-            analysis_response = analyze_fallback()
-
-        raw_output = getattr(analysis_response, "text", None)
-
-        if not raw_output:
-            return {"error": "Empty response from Gemini"}
-
-        logger.info("Received response from Gemini")
-
-        # =============================
-        # 🧠 STEP 4: Parse JSON
-        # =============================
-        parsed = extract_json(raw_output)
-
-        logger.info("JSON parsed successfully")
-
-        return parsed
-
-    except Exception as e:
-        logger.error(f"Gemini processing failed: {str(e)}")
-
-        return {
-            "error": str(e),
-            "type": "gemini_error"
-        }
+if __name__ == "__main__":
+    main()
